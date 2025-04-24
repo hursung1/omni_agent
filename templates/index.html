@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .doc_upload{
+            column-count: 2;
+        }
+    </style>
+</head>
+
+<body>
+    
+    <h1>Welcome to the {{service_name}}</h1>
+
+    <div class="doc_upload">
+        <div> <!--좌측 화면: 사용자가 업로드한 json 파일 목록을 보여줌-->
+            <h2>Uploaded JSON Files</h2>
+            <div class="insert">
+                <form method="POST"  enctype="multipart/form-data" action="/">
+                    <input type="file" name="file" multiple />
+                    <div class="file-list"></div>
+                    <button id="upload-button" type="submit">Upload</button>
+                </form>
+            </div>
+
+            <!-- <ul id="json-file-list">
+                JSON 파일 목록이 여기에 표시됩니다. -->
+            <!-- </ul>
+            <input type="file" id="json-file-input" accept=".json"> -->
+            
+        </div>
+        <div> <!--우측 화면: 벡터DB이름, 적재 버튼-->
+            <h2>Vector DB</h2>
+            <p>Vector DB Name: <input type="text" id="vector-db-name"></p>
+            <button id="load-button">Load</button>
+            <script>
+
+                document.getElementById('load-button').addEventListener('click', function() {
+                    const vectorDBName = document.getElementById('vector-db-name').value;
+                    if (vectorDBName) {
+                        alert(`Loading data into ${vectorDBName}...`);
+                        // 여기에 벡터 DB에 데이터를 적재하는 로직을 추가합니다.
+                        
+                    } else {
+                        alert('Please enter a Vector DB name.');
+                    }
+                });
+            </script>
+            <!-- <button>적재</button> -->
+        </div>
+
+    </div>
+    
+</body>
