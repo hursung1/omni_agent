@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #chat_history{
+            width: 20%;
+            float: left;
+        }
+        #chat_field{
+            width: 80%;
+            float:left;
+            text-align: center;
+            /* display: flex;
+            justify-content: center;
+            align-items: center; */
+        }
+        #chat_text_input_field{
+            width:70%
+        }
+        #model_msg{
+            text-align: left;
+            background-color:whitesmoke;
+        }
+        #user_msg{
+            text-align: right;
+            background-color: aliceblue;
+        }
+    </style>
+</head>
+<body>
+    <!-- 왼쪽: 대화 내역 목록 보여줌 -->
+    <div id="chat_history">
+        <h2>Chat History</h2>
+        <ul>
+            
+        </ul>
+
+    </div>
+
+    <!-- 오른쪽: 메인 화면, 현 대화 세션의 채팅 목록 및 사용가능한 tool 목록 보여줌 -->
+    <div id="chat_field">
+        <h1>Welcome to the {{service_name}}</h1>
+        {% for msg in history %}
+            <div>
+                {% if msg[0] == "model" %}
+                    <div id="model_msg"> 
+                        <strong>{{msg[0]}}</strong>
+                        <p>{{msg[1]}}</p>
+                    
+                    </div>
+                {% else %}
+                    <div id="user_msg">
+                        <strong>{{msg[0]}}</strong>
+                        <p>{{msg[1]}}</p>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <form method="POST" action="/send_message">
+            <input type="text" id="chat_text_input_field" name="chat_text" placeholder="Enter Vector DB Name">
+            <button type="submit">Send</button>
+    </div>
+</body>
+</html>
