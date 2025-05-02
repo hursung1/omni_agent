@@ -12,6 +12,20 @@
 </head>
 
 <body>
+    <script type="text/javascript">
+        function readURL(){
+          var files = document.getElementById('upload').files; //FileArray
+          console.log(files)
+
+          Array.from(files).forEach(file => {
+            filename = file.name;
+            console.log(filename)
+            var newElement = document.createElement("div");
+             newElement.innerHTML = filename;
+             document.getElementById("filename").appendChild(newElement); 
+          });
+        }
+        </script>
     
     <h1>Welcome to the {{service_name}}</h1>
 
@@ -19,9 +33,19 @@
         <div> <!--좌측 화면: 사용자가 업로드한 json 파일 목록을 보여줌-->
             <h2>Uploaded JSON Files</h2>
             <div class="insert">
-                <form method="POST"  enctype="multipart/form-data" action="/">
-                    <input type="file" name="file" multiple />
-                    <div class="file-list"></div>
+                <form method="POST"  enctype="multipart/form-data" action="/upload">
+                    <ul>
+                        {% for file in filenames %}
+                        <li>{{file}}</li>
+                        {% endfor %}
+                    </ul>
+                    
+                    <input id="upload" type="file" name="file" onchange="readURL();" multiple/>
+                    <!-- <input type="hidden" id="filename" name="filename" /> -->
+                    <!-- <input id="filename" type="hidden" name="filename" />
+                        {{filename}} -->
+
+                    <div id="filename" class="file-list"></div>
                     <button id="upload-button" type="submit">Upload</button>
                 </form>
             </div>
@@ -34,10 +58,13 @@
         </div>
         <div> <!--우측 화면: 벡터DB이름, 적재 버튼-->
             <h2>Vector DB</h2>
-            <p>Vector DB Name: <input type="text" id="vector-db-name"></p>
-            <button id="load-button">Load</button>
-            <script>
-
+            <form action="/db_upload" method="POST" enctype="multipart/form-data" >
+                <p>Vector DB Name: <input type="text" name="text" id="vector-db-name"></p>
+                {{db_error}}
+                <button id="load-button" type="submit">Load</button>
+            </form>
+            
+            <!-- <script>
                 document.getElementById('load-button').addEventListener('click', function() {
                     const vectorDBName = document.getElementById('vector-db-name').value;
                     if (vectorDBName) {
@@ -48,7 +75,7 @@
                         alert('Please enter a Vector DB name.');
                     }
                 });
-            </script>
+            </script> -->
             <!-- <button>적재</button> -->
         </div>
 
