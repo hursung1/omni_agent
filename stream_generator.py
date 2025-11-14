@@ -2,6 +2,7 @@ import json
 import time
 import logging
 
+from langchain_core.tools import Tool, StructuredTool
 from langchain_core.messages import AIMessageChunk
 
 from langgraph.graph import StateGraph, END
@@ -14,6 +15,12 @@ logger = logging.getLogger(__name__)
 class StreamingService:
     def __init__(self):
         self.graph = self.compile_graph()
+        subgraph_tool = StructuredTool.from_function(
+            name="",
+            description="",
+            coroutine=,
+            args_schema=
+        )
 
     def compile_graph(self) -> CompiledStateGraph:
         graph = StateGraph(AgentState)

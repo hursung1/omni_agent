@@ -3,8 +3,32 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
 from langgraph.graph import MessagesState
 
-from typing import List
+from typing import List, Literal
 from pydantic import BaseModel, Field
+
+
+class Intent(BaseModel):
+    query: str = Field(
+        ...,
+        description="User's query"
+    )
+    intent: Literal["LAW", ""] = Field(
+        ...,
+        description="Intent of the user's query."
+    )
+
+
+class DocumentRetrieverState(MessagesState):
+    user_input: str
+    retrieved_docs: List[Document]
+    topk: int = Field(
+        ...,
+        description="The number of documents to retrieve."
+    )
+    alpha: float = Field(
+        ...,
+        description="Parameter for weighted sum between keyword search and vector search."
+    )
 
 
 class AgentState(MessagesState):
