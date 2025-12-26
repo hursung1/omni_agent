@@ -21,21 +21,110 @@ import os
 from pathlib import Path
 from typing import Iterable, List
 
+from elasticsearch import Elasticsearch, AsyncElasticsearch
 from langchain_core.documents import Document
-from langchain_elasticsearch import ElasticsearchStore
+from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from models.embedding import emb
+from upsert_documents.argparser import parse_args
 
 LOGGER = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parents[1]
 DOCS_DIR = BASE_DIR / "docs"
-DEFAULT_INDEX_NAME = os.getenv("ELASTICSEARCH_INDEX", "omni-agent-docs")
 
-# 1000/200 is widely recommended for character-based chunking to balance recall & cost.
-CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 200
 SUPPORTED_TEXT_EXTS = {".txt", ".md", ".markdown", ".json"}
+
+class ESDocumentHandler:
+    def __init__(self, index_name: str, chunk_size: int = 1000, chunk_overlap: int = 200):
+        self.index_name = index_name
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.es_client = self.get_es_client(is_async=False)
+
+    # Set ES client
+    def get_es_client(self, is_async: bool = False) -> Elasticsearch | AsyncElasticsearch:
+        """Instantiate an ElasticsearchStore with the configured auth."""
+        es_url = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
+        username = os.getenv("ELASTICSEARCH_USERNAME", "elastic")
+        password = os.getenv("ELASTICSEARCH_PASSWORD")
+
+        if is_async: # Asynchronous ES client
+            return AsyncElasticsearch(
+                [{"host": es_url, "scheme": "https"}],
+                basic_auth=(username, password),
+                verify_certs=False,
+                ca_certs=None
+            )
+
+        else: # Synchronous ES client
+            return Elasticsearch(
+                [{"host": es_url, "scheme": "https"}],
+                basic_auth=(username, password),
+                verify_certs=False,
+                ca_certs=None
+            )
+        
+    def load_documents(self, source_dir: Path) -> List[Document]:
+        """Load supported files and create LangChain Document objects."""
+        documents: List[Document] = []
+        for file_path in _iter_source_files(source_dir):
+            content = _load_file(file_path).strip()
+            if not content:
+                LOGGER.warning("Skipping empty file: %s", file_path)
+                continue
+            documents.append(
+                Document(
+                    page_content=content,
+                    metadata={
+                        "source": str(file_path.relative_to(BASE_DIR)),
+                        "filename": file_path.name,
+                    },
+                )
+            )
+        if not documents:
+            raise ValueError(
+                f"No readable documents found in {source_dir}. "
+                f"Supported extensions: {', '.join(sorted(SUPPORTED_TEXT_EXTS))}"
+            )
+        return documents
+    
+    def add_documents(self, documents: List[Document]):
+        for doc in documents:
+            # 1. split documents
+
+            # 2. upsert to db
+            self.es_client.index(index=self.index_name, document=doc.page_content, id=doc.metadata["source"])
+
+            """Load, chunk, and upload documents."""
+        LOGGER.info("Loading documents from %s", docs_path)
+        raw_docs = load_documents(docs_path)
+        LOGGER.info("Loaded %d source documents", len(raw_docs))
+
+        chunks = split_documents(raw_docs)
+        LOGGER.info(
+            "Split into %d chunks (chunk_size=%d, chunk_overlap=%d)",
+            len(chunks),
+            CHUNK_SIZE,
+            CHUNK_OVERLAP,
+        )
+
+        if dry_run:
+            LOGGER.info("Dry-run enabled; skipping upload.")
+            return
+
+        store = build_store(index_name)
+        store.add_documents(chunks)
+        LOGGER.info("Finished upserting %d chunks into index '%s'", len(chunks), index_name)
+
+    def split_documents(self, documents: List[Document]) -> List[Document]:
+        """Chunk documents so they work well with vector search."""
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+            separators=["\n\n", "\n", " ", ""],
+        )
+        return splitter.split_documents(documents)
 
 
 def _iter_source_files(source_dir: Path) -> Iterable[Path]:
@@ -63,110 +152,8 @@ def _load_file(path: Path) -> str:
     return text
 
 
-def load_documents(source_dir: Path) -> List[Document]:
-    """Load supported files and create LangChain Document objects."""
-    documents: List[Document] = []
-    for file_path in _iter_source_files(source_dir):
-        content = _load_file(file_path).strip()
-        if not content:
-            LOGGER.warning("Skipping empty file: %s", file_path)
-            continue
-        documents.append(
-            Document(
-                page_content=content,
-                metadata={
-                    "source": str(file_path.relative_to(BASE_DIR)),
-                    "filename": file_path.name,
-                },
-            )
-        )
-    if not documents:
-        raise ValueError(
-            f"No readable documents found in {source_dir}. "
-            f"Supported extensions: {', '.join(sorted(SUPPORTED_TEXT_EXTS))}"
-        )
-    return documents
-
-
-def split_documents(documents: List[Document]) -> List[Document]:
-    """Chunk documents so they work well with vector search."""
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE,
-        chunk_overlap=CHUNK_OVERLAP,
-        separators=["\n\n", "\n", " ", ""],
-    )
-    return splitter.split_documents(documents)
-
-
-def build_store(index_name: str) -> ElasticsearchStore:
-    """Instantiate an ElasticsearchStore with the configured auth."""
-    es_url = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
-    cloud_id = os.getenv("ELASTICSEARCH_CLOUD_ID")
-    api_key = os.getenv("ELASTICSEARCH_API_KEY")
-    username = os.getenv("ELASTICSEARCH_USERNAME")
-    password = os.getenv("ELASTICSEARCH_PASSWORD")
-
-    auth_kwargs: dict = {}
-    if api_key:
-        auth_kwargs["es_api_key"] = api_key
-    elif username and password:
-        auth_kwargs.update({"es_user": username, "es_password": password})
-
-    # es_cloud_id takes precedence when provided.
-    connection_kwargs = {"es_cloud_id": cloud_id} if cloud_id else {"es_url": es_url}
-    return ElasticsearchStore(
-        index_name=index_name,
-        embedding=emb,
-        **connection_kwargs,
-        **auth_kwargs,
-    )
-
-
 def upsert(index_name: str, docs_path: Path, dry_run: bool = False) -> None:
-    """Load, chunk, and upload documents."""
-    LOGGER.info("Loading documents from %s", docs_path)
-    raw_docs = load_documents(docs_path)
-    LOGGER.info("Loaded %d source documents", len(raw_docs))
-
-    chunks = split_documents(raw_docs)
-    LOGGER.info(
-        "Split into %d chunks (chunk_size=%d, chunk_overlap=%d)",
-        len(chunks),
-        CHUNK_SIZE,
-        CHUNK_OVERLAP,
-    )
-
-    if dry_run:
-        LOGGER.info("Dry-run enabled; skipping upload.")
-        return
-
-    store = build_store(index_name)
-    store.add_documents(chunks)
-    LOGGER.info("Finished upserting %d chunks into index '%s'", len(chunks), index_name)
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Chunk and upsert documents into an Elasticsearch vector index."
-    )
-    parser.add_argument(
-        "--index",
-        default=DEFAULT_INDEX_NAME,
-        help=f"Target Elasticsearch index (default: {DEFAULT_INDEX_NAME})",
-    )
-    parser.add_argument(
-        "--docs",
-        type=Path,
-        default=DOCS_DIR,
-        help=f"Directory holding source documents (default: {DOCS_DIR})",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Process documents without writing to Elasticsearch.",
-    )
-    return parser.parse_args()
-
+    ...
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")

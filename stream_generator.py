@@ -15,13 +15,7 @@ logger = logging.getLogger(__name__)
 class StreamingService:
     def __init__(self):
         self.graph = self.compile_graph()
-        subgraph_tool = StructuredTool.from_function(
-            name="",
-            description="",
-            coroutine=,
-            args_schema=
-        )
-
+        
     def compile_graph(self) -> CompiledStateGraph:
         graph = StateGraph(AgentState)
 

@@ -18,17 +18,13 @@ class Intent(BaseModel):
     )
 
 
-class DocumentRetrieverState(MessagesState):
-    user_input: str
+class SearchAgentState(MessagesState):
+    query: str
+    intent: str
     retrieved_docs: List[Document]
-    topk: int = Field(
-        ...,
-        description="The number of documents to retrieve."
-    )
-    alpha: float = Field(
-        ...,
-        description="Parameter for weighted sum between keyword search and vector search."
-    )
+    topk: int
+    alpha: float
+    generated_answer: str
 
 
 class AgentState(MessagesState):

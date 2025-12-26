@@ -1,9 +1,9 @@
 from typing import List
 
+from langgraph_scripts.agents.document_retriever import DocumentRetriever
 from retriever.workers import Worker
 
 from langgraph_scripts.graph_state import DocRetrieverArgs
-# from retriever.reranker import rrkr
 
 from langchain.tools import tool
 
@@ -11,6 +11,15 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatMessagePromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import PydanticOutputParser
+
+@tool(args_schema=DocRetrieverArgs)
+async def call_retriever(query: str, topk: int = 10, alpha: float = 0.75):
+    """
+    If domain-specific knowledge is needed, retrieve relavant documents from database.
+    """
+    retriever = DocumentRetriever()
+    return await retriever.run_graph(query=query, topk=topk, alpha=alpha)
+
 
 @tool(args_schema=DocRetrieverArgs)
 async def hr_doc_retriever(query: str, topk: int = 10, alpha: float = 0.75):

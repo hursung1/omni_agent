@@ -1,13 +1,31 @@
+from collections.abc import AsyncIterator
 import os
 from uuid import uuid1
 
 from langchain_openai import ChatOpenAI
 from langgraph_scripts.tools import *
+# from langchain.schema.runnable import Runnable
 
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 MODEL_NAME="gemini-2.5-flash"
 API_KEY = os.environ["GEMINI_API_KEY"]
 
+# class FakeLLM(Runnable):
+#     def invoke(self, text: str):
+#         return text
+
+#     def stream(self, text: str):
+#         for chunk in text.split():
+#             yield chunk
+
+#     async def ainvoke(self, text: str):
+#         return text
+
+#     async def astream(self, text: str) -> AsyncIterator:
+#         for chunk in text.split():
+#             yield chunk
+
+    
 base_llm = ChatOpenAI(
     api_key=API_KEY,
     base_url=BASE_URL,

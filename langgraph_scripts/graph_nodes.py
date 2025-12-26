@@ -86,6 +86,7 @@ async def execute_tools(state: AgentState) -> AgentState:
 
     return retrieved_results
 
+
 async def generate_answer(state: AgentState) -> AgentState:
     chat_history = get_chat_history(state["messages"])
     answer = ""
